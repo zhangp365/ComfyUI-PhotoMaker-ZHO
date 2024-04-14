@@ -220,7 +220,7 @@ class ImagePreprocessingNode_Zho:
             }
         }
 
-    RETURN_TYPES = ("IMAGE",)
+    RETURN_TYPES = ("PIL_IMAGES",)
     FUNCTION = "preprocess_image"
     CATEGORY = "📷PhotoMaker"
   
@@ -237,7 +237,7 @@ class ImagePreprocessingNode_Zho:
                 image_np = (255. * image.cpu().numpy().squeeze()).clip(0, 255).astype(np.uint8)
                 pil_image = Image.fromarray(image_np)
                 pil_images.append(pil_image)
-            return pil_images
+            return (pil_images,)
         elif mode == "path_Input":
             # 路径输入图像
             image_basename_list = os.listdir(ref_images_path)
@@ -246,7 +246,7 @@ class ImagePreprocessingNode_Zho:
                 for basename in image_basename_list
                 if not basename.startswith('.') and basename.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.webp'))
             ]
-            return [load_image(image_path) for image_path in image_path_list]
+            return ([load_image(image_path) for image_path in image_path_list],)
         else:
             raise ValueError("Invalid mode. Choose 'direct_Input' or 'path_Input'.")
 
@@ -376,7 +376,7 @@ class NEWCompositeImageGenerationNode_Zho:
                 "height": ("INT", {"default": 1024, "min": 512, "max": 2048, "step": 32, "display": "slider"}), 
                 "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "pipe": ("MODEL",),
-                "pil_image": ("IMAGE",)
+                "pil_images": ("PIL_IMAGES",)
             }
         }
 
@@ -384,7 +384,7 @@ class NEWCompositeImageGenerationNode_Zho:
     FUNCTION = "generate_image"
     CATEGORY = "📷PhotoMaker"
 
-    def generate_image(self, steps, seed, positive, negative, style_strength_ratio, guidance_scale, batch_size, pil_image, pipe, width, height):
+    def generate_image(self, steps, seed, positive, negative, style_strength_ratio, guidance_scale, batch_size, pil_images, pipe, width, height):
         # Code for the remaining process including style template application, merge step calculation, etc.
         
         start_merge_step = int(float(style_strength_ratio) / 100 * steps)
@@ -392,10 +392,9 @@ class NEWCompositeImageGenerationNode_Zho:
             start_merge_step = 30
 
         generator = torch.Generator(device=device).manual_seed(seed)
-
         output = pipe(
             prompt=positive,
-            input_id_images=[pil_image],
+            input_id_images=pil_images,
             negative_prompt=negative,
             num_images_per_prompt=batch_size,
             num_inference_steps=steps,
